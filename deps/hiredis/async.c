@@ -460,7 +460,7 @@ void redisProcessCallbacks(redisAsyncContext *ac) {
                 return;
             }
             /* No more regular callbacks and no errors, the context *must* be subscribed or monitoring. */
-            //assert((c->flags & REDIS_SUBSCRIBED || c->flags & REDIS_MONITORING));
+            assert((c->flags & REDIS_SUBSCRIBED || c->flags & REDIS_MONITORING));
             if(c->flags & REDIS_SUBSCRIBED)
                 __redisGetSubscribeCallback(ac,reply,&cb);
         }
@@ -652,6 +652,7 @@ int redisvAsyncCommand(redisAsyncContext *ac, redisCallbackFn *fn, void *privdat
     int len;
     int status;
     len = redisvFormatCommand(&cmd,format,ap);
+
     /* We don't want to pass -1 or -2 to future functions as a length. */
     if (len < 0)
         return REDIS_ERR;

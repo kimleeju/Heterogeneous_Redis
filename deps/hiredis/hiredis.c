@@ -914,7 +914,7 @@ int __redisAppendCommand(redisContext *c, const char *cmd, size_t len) {
     }
 
     c->obuf = newbuf;
-	return REDIS_OK;
+    return REDIS_OK;
 }
 
 int redisAppendFormattedCommand(redisContext *c, const char *cmd, size_t len) {

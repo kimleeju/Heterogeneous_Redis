@@ -1135,6 +1135,7 @@ struct redisServer {
 	long long switch_buf_size;
 	long long switch_buf_histlen;
 	long long switch_buf_idx;
+	long long switch_buf_count;
 	long long sent_switch_buf_idx;
 	long long switch_buf_off;
 	time_t switch_buf_time_limit;

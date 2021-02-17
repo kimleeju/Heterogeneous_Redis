@@ -29,6 +29,8 @@
  */
 #include "server.h"
 int temp = 0;
+int cnt = 0;
+int test[150];
 #include <sys/time.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -76,7 +78,7 @@ void createReplicationSwitchBuf(void) {
     server.switch_buf = zmalloc(server.switch_buf_size);
     server.switch_buf_histlen = 0;
     server.switch_buf_idx = 0;
-
+	server.switch_buf_count = 0;
     /* We don't have any data inside our buffer, but virtually the first
      * byte we have is the next byte that will be generated for the
      * replication stream. */
@@ -339,6 +341,7 @@ void replicationFeedSwitchBuf(list *slaves, robj **argv, int argc) {
     /* We can't have slaves attached and no backlog. */
     serverAssert(!(listLength(slaves) != 0 && server.switch_buf == NULL));
 	if(!strcasecmp(argv[0]->ptr,"SET")){
+		server.switch_buf_count++;
 		char aux[LONG_STR_SIZE+3];
 		aux[0] = '*';
 		len = ll2string(aux+1,sizeof(aux)-1,argc);
@@ -487,12 +490,11 @@ long long addReplyReplicationBacklog(client *c, long long offset) {
 void sendSwitchBuf(client *c) {
 	addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, strlen(server.switch_buf)-server.sent_switch_buf_idx));
 	server.sent_switch_buf_idx = server.switch_buf_idx;
-	//const char *command = "LAST\r\n";
-	//addReplySds(server.master,sdsnewlen(command,strlen(command)));
 	addReplyMultiBulkLen(c,2);
 	addReplyBulkCString(c,"LAST");
 	char idx[100];
-	sprintf(idx,"%d",server.sent_switch_buf_idx);
+	sprintf(idx,"%d",server.switch_buf_count);
+	//sprintf(idx,"%d",server.sent_switch_buf_idx);
 	addReplyBulkCString(c,idx);
 
 	server.finish_switch = 1;
@@ -744,8 +746,23 @@ void lastCommand(client *c){
 }
 
 void lastackCommand(client *c){
-	//printf("qqqqq %d\n",atoi(c->argv[1]->ptr));
-	printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
+	//printf("%d %d\n",server.switch_buf_idx,server.switch_buf_idx - atoi(c->argv[1]->ptr));
+	//printf("%d\n", server.switch_buf_count - atoi(c->argv[1]->ptr));
+#if 0
+	if (cnt < 50){
+		test[cnt] = count - atoi(c->argv[1]->ptr);
+		//test[cnt] = server.switch_buf_idx - atoi(c->argv[1]->ptr);
+		cnt++;
+	}
+	else if( cnt == 50 ){
+		for(int i = 0; i < 50 ; ++i){
+			printf("%d\n",test[i]);
+		}
+		cnt = 0;
+	}
+
+	//printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
+#endif
 }
 void okCommand() {
 }
@@ -2149,7 +2166,6 @@ void slaveofCommand(client *c) {
 
         if ((getLongFromObjectOrReply(c, c->argv[2], &port, NULL) != C_OK))
             return;
-		printf("server.port = %d, port = %d\n",server.port,port);
         /* Check if we are already attached to the specified slave */
         if (server.masterhost && !strcasecmp(server.masterhost,c->argv[1]->ptr)
             && server.masterport == port) {
@@ -2361,8 +2377,10 @@ void replicationResurrectCachedMaster(int newfd) {
         }
     }
 #ifdef __KLJ__
-	if(server.bool_switch_ready)
+	if(server.bool_switch_ready){
 		sendSwitchBuf(server.master);
+		//printf("%d\n",server.switch_buf_count);
+	}
 #endif
 }
 
@@ -2671,6 +2689,7 @@ void replicationCron(void) {
     }
 #ifdef __KLJ__
 	if(server.finish_switch && server.bool_switch_ready){
+		//printf("server.switch_buf_idx = %d,server.sent_switch_buf_idx = %d\n",server.switch_buf_idx,server.sent_switch_buf_idx);
 		if(server.switch_buf_idx > server.sent_switch_buf_idx)
 			sendSwitchBuf(server.master);
 	}

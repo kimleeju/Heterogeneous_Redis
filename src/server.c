@@ -1524,9 +1524,10 @@ void initServerConfig(void) {
 	server.bool_switch_ready = 0;
 	server.master_switch_offset = 0;
 	server.switch_buf = NULL;
-	server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF * 100000;
+	server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF * 10000000;
 	server.switch_buf_histlen = 0;
 	server.switch_buf_idx = 0;
+	server.switch_buf_count = 0;
 	server.sent_switch_buf_idx = 0;
 	server.switch_buf_off = 0;
 	server.bool_connect_master = 0;
@@ -2483,8 +2484,9 @@ void call(client *c, int flags) {
     server.also_propagate = prev_also_propagate;
     server.stat_numcommands++;
 #ifdef __KLJ__
-	if(server.bool_switch_ready)
+	if(server.bool_switch_ready){
 		replicationFeedSwitchBuf(server.slaves,c->argv,c->argc);
+	}
 #endif
 }
 
