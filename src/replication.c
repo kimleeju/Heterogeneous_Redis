@@ -28,7 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "server.h"
-
+int temp = 0;
 #include <sys/time.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -332,13 +332,10 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
 #ifdef __KLJ__
 void replicationFeedSwitchBuf(list *slaves, robj **argv, int argc) {
 	int j,len;
-	
-	if (server.masterhost != NULL || server.switch_buf == NULL) return;
+	//if (server.masterhost != NULL || server.switch_buf == NULL) return;
 
     /* If there aren't slaves, and there is no backlog buffer to populate,
      * we can return ASAP. */
-    if (server.switch_buf == NULL && listLength(slaves) == 0) return;
-	
     /* We can't have slaves attached and no backlog. */
     serverAssert(!(listLength(slaves) != 0 && server.switch_buf == NULL));
 	if(!strcasecmp(argv[0]->ptr,"SET")){
@@ -488,11 +485,18 @@ long long addReplyReplicationBacklog(client *c, long long offset) {
 
 #ifdef __KLJ__
 void sendSwitchBuf(client *c) {
-	const char *command = "PROMOTE\r\n";
-	addReplySds(c,sdsnewlen(command,strlen(command)));
-	addReplySds(c,sdsnewlen(server.switch_buf, strlen(server.switch_buf)));
+	addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, strlen(server.switch_buf)-server.sent_switch_buf_idx));
+	server.sent_switch_buf_idx = server.switch_buf_idx;
+	//const char *command = "LAST\r\n";
+	//addReplySds(server.master,sdsnewlen(command,strlen(command)));
+	addReplyMultiBulkLen(c,2);
+	addReplyBulkCString(c,"LAST");
+	char idx[100];
+	sprintf(idx,"%d",server.sent_switch_buf_idx);
+	addReplyBulkCString(c,idx);
+
 	server.finish_switch = 1;
-	zfree(server.switch_buf);
+	//zfree(server.switch_buf);
 }
 #endif
 
@@ -732,11 +736,22 @@ void switchCommand() {
 	if(server.switch_buf == NULL) createReplicationSwitchBuf();
 	server.bool_switch_ready = 1;
 }
+void lastCommand(client *c){
+	addReplyMultiBulkLen(c,2);
+	addReplyBulkCString(c,"LASTACK");
+	addReplyBulkCString(c,c->argv[1]->ptr);
+	//addReplySds(c,sdsnewlen(command,strlen(command)));
+}
+
+void lastackCommand(client *c){
+	//printf("qqqqq %d\n",atoi(c->argv[1]->ptr));
+	printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
+}
 void okCommand() {
 }
 
 void promoteCommand(){
-	server.synchronizing = 1;
+	//server.synchronizing = 1;
 }
 void finishCommand(client *c){
 	c->flags |= CLIENT_SLAVE;
@@ -957,23 +972,6 @@ void replconfCommand(client *c) {
 				replicationSendAck();
 			return;
         } 
-#if 0
-#ifdef __KLJ__
-         else if (!strcasecmp(c->argv[j]->ptr,"finish")) {
-			c->flags |= CLIENT_SLAVE;
-    		c->replstate = SLAVE_STATE_ONLINE;
-    		c->repl_ack_time = server.unixtime;
-    		c->repl_put_online_on_ack = 0;
-    		listAddNodeTail(server.slaves,c);
-			putSlaveOnline(c);
-			printf("22222222222222222\n");
-			return;
-		 }else if (!strcasecmp(c->argv[j]->ptr,"promote")) {
-			server.synchronizing = 1;
-		 	return;
-		 }
-#endif
-#endif
 		else {
             addReplyErrorFormat(c,"Unrecognized REPLCONF option: %s",
                 (char*)c->argv[j]->ptr);
@@ -1885,11 +1883,13 @@ void syncWithMaster(aeEventLoop *el, int fd, void *privdata, int mask) {
         server.repl_state = REPL_STATE_SEND_PSYNC;
     }
 
+#if 1
 #ifdef __KLJ__
 	if(server.bool_switch_ready){
 		replicationResurrectCachedMaster(fd);
 		return;
 	}
+#endif
 #endif
     /* Try a partial resynchonization. If we don't have a cached master
      * slaveTryPartialResynchronization() will at least try to use PSYNC
@@ -2149,7 +2149,7 @@ void slaveofCommand(client *c) {
 
         if ((getLongFromObjectOrReply(c, c->argv[2], &port, NULL) != C_OK))
             return;
-
+		printf("server.port = %d, port = %d\n",server.port,port);
         /* Check if we are already attached to the specified slave */
         if (server.masterhost && !strcasecmp(server.masterhost,c->argv[1]->ptr)
             && server.masterport == port) {
@@ -2239,48 +2239,6 @@ void replicationSendAck(void) {
         c->flags &= ~CLIENT_MASTER_FORCE_REPLY;
     }
 }
-#if 0
-#ifdef __KLJ__
-void replicationSendCommand(const char* command) {
-	client *c = server.master;
-    if (c != NULL) {
-		addReplySds(c,sdsnewlen(command, strlen(command)));
-#if 0
-		c->flags |= CLIENT_MASTER_FORCE_REPLY;
-        addReplyMultiBulkLen(c,3);
-        addReplyBulkCString(c,"REPLCONF");
-		addReplyBulkCString(c,command);
-        addReplyBulkLongLong(c,c->reploff);
-        c->flags &= ~CLIENT_MASTER_FORCE_REPLY;
-#endif
-	}
-}
-#endif
-#if 0
-void replicationSendPromote(void) {
-	client *c = server.master;
-    if (c != NULL) {
-        c->flags |= CLIENT_MASTER_FORCE_REPLY;
-        addReplyMultiBulkLen(c,3);
-        addReplyBulkCString(c,"REPLCONF");
-		addReplyBulkCString(c,"PROMOTE");
-        addReplyBulkLongLong(c,c->reploff);
-        //c->flags &= ~CLIENT_MASTER_FORCE_REPLY;
-    }
-}
-#endif
-void replicationSendPsync(void) {
-	client *c = server.master;
-    if (c != NULL) {
-        c->flags |= CLIENT_MASTER_FORCE_REPLY;
-        addReplyMultiBulkLen(c,3);
-        addReplyBulkCString(c,"REPLCONF");
-        addReplyBulkCString(c,"PSYNC");
-        addReplyBulkLongLong(c,c->reploff);
-        c->flags &= ~CLIENT_MASTER_FORCE_REPLY;
-    }
-}
-#endif
 /* ---------------------- MASTER CACHING FOR PSYNC -------------------------- */
 
 /* In order to implement partial synchronization we need to be able to cache
@@ -2388,12 +2346,11 @@ void replicationResurrectCachedMaster(int newfd) {
 	server.repl_state = REPL_STATE_CONNECTED;
     /* Re-add to the list of clients. */
     listAddNodeTail(server.clients,server.master);
-    if (aeCreateFileEvent(server.el, newfd, AE_READABLE,
+	if (aeCreateFileEvent(server.el, newfd, AE_READABLE,
                           readQueryFromClient, server.master)) {
         serverLog(LL_WARNING,"Error resurrecting the cached master, impossible to add the readable handler: %s", strerror(errno));
         freeClientAsync(server.master); /* Close ASAP. */
     }
-
     /* We may also need to install the write handler as well if there is
      * pending data in the write buffers. */
     if (clientHasPendingReplies(server.master)) {
@@ -2712,20 +2669,31 @@ void replicationCron(void) {
             serverLog(LL_NOTICE,"MASTER <-> SLAVE sync started");
         }
     }
-
+#ifdef __KLJ__
+	if(server.finish_switch && server.bool_switch_ready){
+		if(server.switch_buf_idx > server.sent_switch_buf_idx)
+			sendSwitchBuf(server.master);
+	}
+#endif
     /* Send ACK to master from time to time.
      * Note that we do not send periodic acks to masters that don't
      * support PSYNC and replication offsets. */
     if (server.masterhost && server.master &&
         !(server.master->flags & CLIENT_PRE_PSYNC))
 	{
+#ifdef __KLJ__
 		if(server.finish_switch){
-			const char *command = "FINISH\r\n";
-			addReplySds(server.master,sdsnewlen(command,strlen(command)));
-			server.bool_switch_ready = 0; 
-			server.finish_switch = 0;
-
+#if 0
+			if(!temp){
+				const char *command = "FINISH\r\n";
+				addReplySds(server.master,sdsnewlen(command,strlen(command)));
+				temp =1;
+			}
+#endif
+			//server.bool_switch_ready = 0; 
+			//server.finish_switch = 0;
 		}
+#endif
 		replicationSendAck();
 	}
     /* If we have attached slaves, PING them from time to time.
@@ -2866,3 +2834,34 @@ void replicationCron(void) {
     refreshGoodSlavesCount();
     replication_cron_loops++; /* Incremented with frequency 1 HZ. */
 }
+#ifdef __KLJ__
+void synchronousCommand(client *c){
+#if 0
+	int fd;
+    fd = anetTcpNonBlockBestEffortBindConnect(NULL,
+        c->argv[1]->ptr,atoi(c->argv[2]->ptr),NET_FIRST_BIND_ADDR);
+	printf("server.port = %d\n",server.port);
+	char buf[10];
+	sprintf(buf,"%d",server.port);
+	sendSynchronousCommand(1<<1,fd,"RSYNC",c->argv[1]->ptr,buf,NULL);
+	server.synchronizing = 1;
+#endif
+}
+void rsyncCommand(client *c){
+#if 0
+#if 0
+	if (write(c->fd,server.switch_buf,strlen(server.switch_buf)) != strlen(server.switch_buf)) {
+        freeClientAsync(c);
+        return C_OK;
+    }
+#endif
+	int fd;
+    fd = anetTcpNonBlockBestEffortBindConnect(NULL,
+      c->argv[1]->ptr,atoi(c->argv[2]->ptr),NET_FIRST_BIND_ADDR);
+	//replicationResurrectCachedMaster(fd);	
+	//printf("111111 c->argv[1]->ptr = %s",c->argv[1]->ptr);
+	//sendSwitchBuf(server.master);
+	printf("port = %d 4444444\n",server.port);
+#endif
+}
+#endif

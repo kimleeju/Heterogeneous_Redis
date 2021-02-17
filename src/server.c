@@ -317,8 +317,11 @@ struct redisCommand redisCommandTable[] = {
     {"host:",securityWarningCommand,-1,"lt",0,NULL,0,0,0,0,0},
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
 #ifdef __KLJ__
+	{"rsync",rsyncCommand,3,"ars",0,NULL,0,0,0,0,0},	
 	{"switch",switchCommand,1,"ars",0,NULL,0,0,0,0,0},
-//    {"synchronous",synchronousCommand,-1,"ars",0,NULL,0,0,0,0,0},
+	{"last",lastCommand,-1,"ars",0,NULL,0,0,0,0,0},
+	{"lastack",lastackCommand,-1,"ars",0,NULL,0,0,0,0,0},
+	{"synchronous",synchronousCommand,-1,"ars",0,NULL,0,0,0,0,0},
     {"+OK",okCommand,-1,"ars",0,NULL,0,0,0,0,0},
 	{"promote",promoteCommand,1,"ars",0,NULL,0,0,0,0,0},
 	{"finish",finishCommand,1,"ars",0,NULL,0,0,0,0,0},
@@ -1521,9 +1524,10 @@ void initServerConfig(void) {
 	server.bool_switch_ready = 0;
 	server.master_switch_offset = 0;
 	server.switch_buf = NULL;
-	server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF;
+	server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF * 100000;
 	server.switch_buf_histlen = 0;
 	server.switch_buf_idx = 0;
+	server.sent_switch_buf_idx = 0;
 	server.switch_buf_off = 0;
 	server.bool_connect_master = 0;
 	//	server.switch_buf_time_limit 
@@ -2363,6 +2367,7 @@ void preventCommandReplication(client *c) {
  *
  */
 void call(client *c, int flags) {
+	
 	long long dirty, start, duration;
     int client_old_flags = c->flags;
     /* Sent the command to clients in MONITOR mode, only if the commands are
@@ -2445,6 +2450,7 @@ void call(client *c, int flags) {
          * propagation is needed. */
         if (propagate_flags != PROPAGATE_NONE){
 			propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
+
 		}
 	}
 
@@ -2495,7 +2501,7 @@ int processCommand(client *c) {
      * go through checking for replication and QUIT will cause trouble
      * when FORCE_REPLICATION is enabled and would be implemented in
      * a regular command proc. */
-    
+
 //	printf("ccccccccccccc argv = %s\n",c->argv[0]->ptr);
 	if (!strcasecmp(c->argv[0]->ptr,"quit")) {
         addReply(c,shared.ok);
@@ -2614,22 +2620,13 @@ int processCommand(client *c) {
         !(c->flags & CLIENT_MASTER) &&
         c->cmd->flags & CMD_WRITE)
     {
-		addReply(c, shared.roslaveerr);
-        return C_OK;
-#if 0
-#ifndef __KLJ__
-		addReply(c, shared.roslaveerr);
-        return C_OK;
-#endif
 #ifdef __KLJ__
-		if(finish_sync){
-			addReply(c, shared.roslaveerr);
-        	return C_OK;
-		}
-		else{
-		
-		}
+		if(!server.finish_switch){
 #endif
+//			addReply(c, shared.roslaveerr);
+//        	return C_OK;
+#ifdef __KLJ__
+		}
 #endif
     }
 
@@ -2852,15 +2849,6 @@ void authCommand(client *c) {
       addReplyError(c,"invalid password");
     }
 }
-#if 0
-#ifdef __KLJ__
-void synchronousCommand() {
-	//sync맞춰줘야함
-	//replicationSendPsync();
-	replicationSendCommand("FINISH");
-}
-#endif
-#endif
 
 /* The PING command. It works in a different way if the client is in
  * in Pub/Sub mode. */

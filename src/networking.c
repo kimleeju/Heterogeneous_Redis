@@ -1320,11 +1320,11 @@ int processMultibulkBuffer(client *c) {
  * or because a client was blocked and later reactivated, so there could be
  * pending query buffer, already representing a full command, to process. */
 void processInputBuffer(client *c) {
-    server.current_client = c;
+
+	server.current_client = c;
 	/* Keep processing while there is something in the input buffer */
 	/* 입력 버퍼에 무언가있는 동안 처리유지*/
     while(sdslen(c->querybuf)) {
-		
 		/*버퍼에 데이터가 있는 경우*/
 		/*클라이언트가 무언가 중간에 있는 경우 즉시 중단*/
         /* Return if clients are paused. */
@@ -1415,8 +1415,8 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
 #endif
 #endif
 	nread = read(fd, c->querybuf+qblen, readlen);
-#if 1
-	//if(server.synchronizing)
+#if 0
+	if(server.synchronizing)
 		serverLog(LL_WARNING, "After: %s",c->querybuf+qblen);
 #endif
 	if (nread == -1) {
