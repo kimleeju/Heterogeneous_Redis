@@ -1650,8 +1650,10 @@ void ldbEndSession(client *c) {
 
     /* If it's a fork()ed session, we just exit. */
     if (ldb.forked) {
-        writeToClient(c->fd, c, 0);
-        serverLog(LL_WARNING,"Lua debugging session child exiting");
+        //pthread_mutex_lock(&server.mutex);
+		writeToClient(c->fd, c, 0);
+        //pthread_mutex_unlock(&server.mutex);
+		serverLog(LL_WARNING,"Lua debugging session child exiting");
         exitFromChild(0);
     } else {
         serverLog(LL_WARNING,

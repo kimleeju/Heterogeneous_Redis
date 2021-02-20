@@ -53,7 +53,6 @@
 #include <lua.h>
 #include <signal.h>
 #include <stdarg.h>
-
 typedef long long mstime_t; /* millisecond time type. */
 
 #include "ae.h"      /* Event driven programming library */
@@ -1130,6 +1129,9 @@ struct redisServer {
     int slaveseldb;                 /* Last SELECTed DB in replication output */
     int repl_ping_slave_period;     /* Master pings the slave every N seconds */
 #ifdef __KLJ__
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+	pthread_t switch_thread;
 	char *switch_buf;
 	long long master_switch_offset;
 	long long switch_buf_size;
@@ -2049,6 +2051,7 @@ void endCommand(client *c);
 void lockCommand(client *c);
 void rsyncCommand(client *c);
 void switchCommand();
+void sendSwitchBuf(client *c);
 void lastCommand(client *c);
 void lastackCommand(client *c);
 void synchronousCommand(client *c);

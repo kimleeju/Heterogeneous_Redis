@@ -88,11 +88,11 @@ void listRelease(list *list)
 list *listAddNodeHead(list *list, void *value)
 {
     listNode *node;
-
+	
     if ((node = zmalloc(sizeof(*node))) == NULL)
         return NULL;
     node->value = value;
-    if (list->len == 0) {
+	if (list->len == 0) {
         list->head = list->tail = node;
         node->prev = node->next = NULL;
     } else {

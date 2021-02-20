@@ -226,6 +226,7 @@ JUMP:
  * -------------------------------------------------------------------------- */
 
 int _addReplyToBuffer(client *c, const char *s, size_t len) {
+	//pthread_mutex_lock(&server.mutex);
 	size_t available = sizeof(c->buf)-c->bufpos;
 
     if (c->flags & CLIENT_CLOSE_AFTER_REPLY) return C_OK;
@@ -240,7 +241,8 @@ int _addReplyToBuffer(client *c, const char *s, size_t len) {
 		return C_ERR;
 	}
     memcpy(c->buf+c->bufpos,s,len);	
-	c->bufpos+=len;
+	c->bufpos+=len;	
+	//pthread_mutex_unlock(&server.mutex);
 	return C_OK;
 }
 
@@ -910,7 +912,9 @@ void freeClientsInAsyncFreeQueue(void) {
 /* Write data in output buffers to client. Return C_OK if the client
  * is still valid after the call, C_ERR if it was freed. */
 int writeToClient(int fd, client *c, int handler_installed) {
-    ssize_t nwritten = 0, totwritten = 0;
+#ifdef __KLJ__
+	//pthread_mutex_lock(&server.mutex);
+	ssize_t nwritten = 0, totwritten = 0;
     size_t objlen;
     sds o;
 
@@ -994,14 +998,20 @@ int writeToClient(int fd, client *c, int handler_installed) {
             return C_ERR;
         }
     }
-    return C_OK;
+	//pthread_cond_signal(&server.cond);
+	//pthread_mutex_unlock(&server.mutex);
+	return C_OK;
+
+#endif
 }
 
 /* Write event handler. Just send data to the client. */
 void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
     UNUSED(mask);
-    writeToClient(fd,privdata,1);
+	//pthread_mutex_lock(&server.mutex);
+	writeToClient(fd,privdata,1);
+	//pthread_mutex_unlock(&server.mutex);
 }
 
 /* This function is called just before entering the event loop, in the hope
@@ -1020,6 +1030,10 @@ int handleClientsWithPendingWrites(void) {
         listDelNode(server.clients_pending_write,ln);
 
         /* Try to write buffers to the client socket. */
+		//pthread_mutex_lock(&server.mutex);
+		//int tmp = writeToClient(c->fd,c,0);
+		//pthread_mutex_unlock(&server.mutex);
+		//if(tmp == C_ERR)continue;
 		if (writeToClient(c->fd,c,0) == C_ERR) continue;
 
         /* If there is nothing left, do nothing. Otherwise install
@@ -1415,9 +1429,9 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
 #endif
 #endif
 	nread = read(fd, c->querybuf+qblen, readlen);
-#if 0
-	if(server.synchronizing)
-		serverLog(LL_WARNING, "After: %s",c->querybuf+qblen);
+#if 1
+	//if(server.synchronizing)
+	//serverLog(LL_WARNING, "After: %s",c->querybuf+qblen);
 #endif
 	if (nread == -1) {
         if (errno == EAGAIN) {
@@ -2002,8 +2016,11 @@ void flushSlavesOutputBuffers(void) {
             slave->replstate == SLAVE_STATE_ONLINE &&
             clientHasPendingReplies(slave))
         {
+			//pthread_mutex_lock(&server.mutex);
             writeToClient(slave->fd,slave,0);
-        }
+       		//pthread_mutex_unlock(&server.mutex);
+		}
+
     }
 }
 

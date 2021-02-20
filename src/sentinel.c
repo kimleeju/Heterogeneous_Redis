@@ -4118,7 +4118,8 @@ void sentinelFailoverSendSlaveOfNoOne(sentinelRedisInstance *ri) {
      * if INFO returns a different role (master instead of slave). */
     //새 master 
 	retval = sentinelSendSlaveOf(ri->promoted_slave,NULL,0);
-    if (retval != C_OK) return;
+    printf("333333333333333333333\n");
+	if (retval != C_OK) return;
 
     sentinelEvent(LL_NOTICE, "+failover-state-wait-promotion",
         ri->promoted_slave,"%@");

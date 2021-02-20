@@ -26,7 +26,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include "server.h"
 #include "cluster.h"
 #include "slowlog.h"
@@ -1524,7 +1523,9 @@ void initServerConfig(void) {
 	server.bool_switch_ready = 0;
 	server.master_switch_offset = 0;
 	server.switch_buf = NULL;
-	server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF * 10000000;
+	//server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF * 1024*1024*1024*1024*1024;
+	//server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF * 100000000;
+	server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF*1024;
 	server.switch_buf_histlen = 0;
 	server.switch_buf_idx = 0;
 	server.switch_buf_count = 0;
@@ -1969,6 +1970,10 @@ void initServer(void) {
 #ifdef __KLJ__
 	server.finish_switch = 0;
 	server.finish_sync = 0;
+	pthread_mutex_init(&server.mutex, NULL);
+	pthread_cond_init(&server.cond, NULL);
+	//pthread_create(&server.switch_thread,NULL,sendSwitchBuf,(void*)server.master);
+	//pthread_detach(&server.switch_thread);
 #endif
     createSharedObjects();
     adjustOpenFilesLimit();

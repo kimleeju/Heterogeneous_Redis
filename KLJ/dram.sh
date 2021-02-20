@@ -24,7 +24,7 @@ find / -name "*appendonly.aof" -exec rm {} \;
 
 ../src/redis-sentinel sentinel_0.conf &
 
-../src/redis-server 3000.conf &
+#../src/redis-server 3000.conf &
 
 ../src/redis-server 3001.conf & 
 

@@ -175,8 +175,11 @@ void feedReplicationSwitchBuf(void *ptr, size_t len) {
 		if (thislen > len) thislen = len; 
 		memcpy(server.switch_buf+server.switch_buf_idx,p,thislen);
 		server.switch_buf_idx += thislen;
-		if (server.switch_buf_idx == server.switch_buf_size)
+		//printf("idx = %d\n",server.switch_buf_idx);
+		if (server.switch_buf_idx == server.switch_buf_size){ 
+			printf("7777777777777777777  %d\n",server.switch_buf_idx );
 			server.switch_buf_idx = 0; 
+		}
 		len -= thislen;
 			p += thislen;
 		server.switch_buf_histlen += thislen;
@@ -312,7 +315,7 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
     /* Write the command to every slave. */
     listRewind(slaves,&li);
     while((ln = listNext(&li))) {
-        client *slave = ln->value;
+		client *slave = ln->value;
 
         /* Don't feed slaves that are still waiting for BGSAVE to start */
         if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) continue;
@@ -333,6 +336,7 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
 
 #ifdef __KLJ__
 void replicationFeedSwitchBuf(list *slaves, robj **argv, int argc) {
+//	pthread_mutex_lock(&server.mutex);
 	int j,len;
 	//if (server.masterhost != NULL || server.switch_buf == NULL) return;
 
@@ -359,8 +363,11 @@ void replicationFeedSwitchBuf(list *slaves, robj **argv, int argc) {
 			feedReplicationSwitchBufWithObject(argv[j]);
 			feedReplicationSwitchBuf(aux+len+1,2);
 		}
+		//sleep(1);
+		pthread_cond_signal(&server.cond);
 		return;
 	}
+//	pthread_mutex_unlock(&server.mutex);
 }
 
 
@@ -488,17 +495,86 @@ long long addReplyReplicationBacklog(client *c, long long offset) {
 
 #ifdef __KLJ__
 void sendSwitchBuf(client *c) {
-	addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, strlen(server.switch_buf)-server.sent_switch_buf_idx));
-	server.sent_switch_buf_idx = server.switch_buf_idx;
-	addReplyMultiBulkLen(c,2);
-	addReplyBulkCString(c,"LAST");
-	char idx[100];
-	sprintf(idx,"%d",server.switch_buf_count);
-	//sprintf(idx,"%d",server.sent_switch_buf_idx);
-	addReplyBulkCString(c,idx);
+	int fd;
+    fd = anetTcpNonBlockBestEffortBindConnect(NULL,
+        server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
+	client* cli = createClient(fd);	
+	int sb_idx;
+	while(1){
+		sleep(1);
+	//	pthread_mutex_lock(&server.mutex);
+		pthread_cond_wait(&server.cond, &server.mutex);
+		sb_idx = server.switch_buf_idx;
+		if(sb_idx > server.sent_switch_buf_idx){
+#if 1
+			//printf("%s",server.switch_buf + server.sent_switch_buf_idx);
+			char com[100];
+			int n = 1;
+			int temp_num = sb_idx;
+			while(temp_num >= 10)
+			{
+				temp_num/= 10;
+				n++;
+			}
+			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%d\r\n%d\r\n",n,sb_idx);
+			write(fd,server.switch_buf + server.sent_switch_buf_idx,sb_idx-server.sent_switch_buf_idx);
+			write(fd,com,strlen(com));
+			server.sent_switch_buf_idx = sb_idx;
+#endif
+#if 0
+			char *com = "*2\r\n$4\r\nLAST\r\n$3\r\n100\r\n";
+			write(fd,com,strlen(com));
+			char idx[20];
+			sprintf(idx,"%d",sb_idx);
+			char *sz = (char*)malloc(strlen(idx));
+#endif		
+#if 1
+	//		addReplyMultiBulkLen(cli,2);
+	//		addReplyBulkCString(cli,"LAST");
+#if 0
+			char idx[20];
+			sprintf(idx,"%d",sb_idx);
+			//sprintf(idx,"%d",server.sent_switch_buf_idx);
+			addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, sb_idx-server.sent_switch_buf_idx));
+	//		addReplyBulkCString(cli,idx);
+			server.sent_switch_buf_idx = sb_idx;
+			//pthread_mutex_unlock(&server.mutex);
+#endif
+#endif
+#if 0
+			addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, sb_idx-server.sent_switch_buf_idx));
+			server.sent_switch_buf_idx = sb_idx;
+			addReplyMultiBulkLen(c,2);
+			addReplyBulkCString(c,"LAST");
+			char idx[20];
+			//sprintf(idx,"%d",server.switch_buf_count);
+			sprintf(idx,"%d",server.sent_switch_buf_idx);
+			addReplyBulkCString(c,idx);
+			//pthread_mutex_unlock(&server.mutex);
+#endif
+			server.finish_switch = 1;
+		//	sleep(1);
+		}
+		else if(sb_idx < server.sent_switch_buf_idx){
+		//	sleep(1);
 
-	server.finish_switch = 1;
-	//zfree(server.switch_buf);
+	//		addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, strlen(server.switch_buf)-server.sent_switch_buf_idx));
+	//		addReplySds(c,sdsnewlen(server.switch_buf, server.switch_buf_idx));
+//			server.sent_switch_buf_idx = sb_idx;
+	//		addReplyMultiBulkLen(c,2);
+	//		addReplyBulkCString(c,"LAST");
+	//		char idx[100];
+	//		sprintf(idx,"%d",server.switch_buf_count);
+			//sprintf(idx,"%d",server.sent_switch_buf_idx);
+	//		addReplyBulkCString(c,idx);
+		}
+		else{
+			//sleep(1);
+		}
+		//pthread_cond_wait(&server.cond, &server.mutex);
+		//zfree(server.switch_buf);
+	//	pthread_mutex_unlock(&server.mutex);
+	}
 }
 #endif
 
@@ -739,6 +815,7 @@ void switchCommand() {
 	server.bool_switch_ready = 1;
 }
 void lastCommand(client *c){
+	//printf("aaaaaaaaaaaaaaaaaaaaaaa\n");
 	addReplyMultiBulkLen(c,2);
 	addReplyBulkCString(c,"LASTACK");
 	addReplyBulkCString(c,c->argv[1]->ptr);
@@ -747,7 +824,7 @@ void lastCommand(client *c){
 
 void lastackCommand(client *c){
 	//printf("%d %d\n",server.switch_buf_idx,server.switch_buf_idx - atoi(c->argv[1]->ptr));
-	//printf("%d\n", server.switch_buf_count - atoi(c->argv[1]->ptr));
+	//printf("idx = %d, diff %d\n",server.switch_buf_idx, server.switch_buf_idx - atoi(c->argv[1]->ptr));
 #if 0
 	if (cnt < 50){
 		test[cnt] = count - atoi(c->argv[1]->ptr);
@@ -1950,7 +2027,8 @@ void syncWithMaster(aeEventLoop *el, int fd, void *privdata, int mask) {
      * as well, if we have any sub-slaves. The master may transfer us an
      * entirely different data set and we have no way to incrementally feed
      * our slaves after that. */
-    disconnectSlaves(); /* Force our slaves to resync with us as well. */
+    printf("33333333333333333\n");
+	disconnectSlaves(); /* Force our slaves to resync with us as well. */
     freeReplicationBacklog(); /* Don't allow our chained slaves to PSYNC. */
 
     /* Fall back to SYNC if needed. Otherwise psync_result == PSYNC_FULLRESYNC
@@ -2089,7 +2167,7 @@ void replicationSetMaster(char *ip, int port) {
     server.masterhost = sdsnew(ip);
     server.masterport = port;
     if (server.master) {
-        freeClient(server.master);
+		freeClient(server.master);
     }
     disconnectAllBlockedClients(); /* Clients blocked in master, now slave. */
 
@@ -2114,8 +2192,10 @@ void replicationUnsetMaster(void) {
      * used as secondary ID up to the current offset, and a new replication
      * ID is created to continue with a new replication history. */
     shiftReplicationId();
-    if (server.master) freeClient(server.master);
-    replicationDiscardCachedMaster();
+    if (server.master) {
+		freeClient(server.master);
+	}   
+	replicationDiscardCachedMaster();
     cancelReplicationHandshake();
     /* Disconnecting all the slaves is required: we need to inform slaves
      * of the replication ID change (see shiftReplicationId() call). However
@@ -2378,7 +2458,9 @@ void replicationResurrectCachedMaster(int newfd) {
     }
 #ifdef __KLJ__
 	if(server.bool_switch_ready){
-		sendSwitchBuf(server.master);
+		pthread_create(&server.switch_thread,NULL,(void*)sendSwitchBuf,(void*)server.master);
+		pthread_detach(&server.switch_thread);
+//		sendSwitchBuf(server.master);
 		//printf("%d\n",server.switch_buf_count);
 	}
 #endif
@@ -2687,12 +2769,15 @@ void replicationCron(void) {
             serverLog(LL_NOTICE,"MASTER <-> SLAVE sync started");
         }
     }
+#if 0
 #ifdef __KLJ__
 	if(server.finish_switch && server.bool_switch_ready){
 		//printf("server.switch_buf_idx = %d,server.sent_switch_buf_idx = %d\n",server.switch_buf_idx,server.sent_switch_buf_idx);
 		if(server.switch_buf_idx > server.sent_switch_buf_idx)
+//			pthread_create(&server.switch_thread,NULL,sendSwitchBuf,(void*)server.master);
 			sendSwitchBuf(server.master);
 	}
+#endif
 #endif
     /* Send ACK to master from time to time.
      * Note that we do not send periodic acks to masters that don't
