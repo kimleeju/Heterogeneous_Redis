@@ -10,7 +10,7 @@ kill -9 $pid
 pid=$(ps -ef | grep "redis" | grep "3100" | awk '{print $2}')
 kill -9 $pid
 
-cp 3000_bak.conf 3000.conf
+cp ../../Heterogeneous_Redis_NVM/KLJ/3000_bak.conf ../../Heterogeneous_Redis_NVM/KLJ/3000.conf
 cp 3001_bak.conf 3001.conf
 cp 3002_bak.conf 3002.conf
 cp 3003_bak.conf 3003.conf
@@ -24,7 +24,7 @@ find / -name "*appendonly.aof" -exec rm {} \;
 
 ../src/redis-sentinel sentinel_0.conf &
 
-#../src/redis-server 3000.conf &
+../../Heterogeneous_Redis_NVM/src/redis-server ../../Heterogeneous_Redis_NVM/KLJ/3000.conf &
 
 ../src/redis-server 3001.conf & 
 
