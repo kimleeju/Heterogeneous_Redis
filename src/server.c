@@ -319,7 +319,7 @@ struct redisCommand redisCommandTable[] = {
 	{"rsync",rsyncCommand,3,"ars",0,NULL,0,0,0,0,0},	
 	{"switch",switchCommand,1,"ars",0,NULL,0,0,0,0,0},
 	{"last",lastCommand,-1,"ars",0,NULL,0,0,0,0,0},
-	{"lastack",lastackCommand,-1,"ars",0,NULL,0,0,0,0,0},
+	{"lack",lastackCommand,-1,"ars",0,NULL,0,0,0,0,0},
 	{"synchronous",synchronousCommand,-1,"ars",0,NULL,0,0,0,0,0},
     {"+OK",okCommand,-1,"ars",0,NULL,0,0,0,0,0},
 	{"promote",promoteCommand,1,"ars",0,NULL,0,0,0,0,0},
