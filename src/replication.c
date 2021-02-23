@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "server.h"
+struct timeval tv;
 int temp = 0;
 int cnt = 0;
 int test[150];
@@ -364,7 +365,7 @@ void replicationFeedSwitchBuf(list *slaves, robj **argv, int argc) {
 			feedReplicationSwitchBuf(aux+len+1,2);
 		}
 		//sleep(1);
-		pthread_cond_signal(&server.cond);
+		//pthread_cond_signal(&server.cond);
 		return;
 	}
 //	pthread_mutex_unlock(&server.mutex);
@@ -495,7 +496,8 @@ long long addReplyReplicationBacklog(client *c, long long offset) {
 
 #ifdef __KLJ__
 void sendSwitchBuf(client *c) {
-	int fd,fd2;
+	int fd,fd2,n, temp_num, w1,w2;
+	char com[100];
     fd = anetTcpNonBlockBestEffortBindConnect(NULL,
         server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
     fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
@@ -503,22 +505,20 @@ void sendSwitchBuf(client *c) {
 	//client* cli = createClient(fd);	
 	int sb_idx;
 	while(1){
-	//	sleep(3);
+		sleep(1);
 		//pthread_cond_wait(&server.cond, &server.mutex);
 		sb_idx = server.switch_buf_idx;
 		if(sb_idx > server.sent_switch_buf_idx){
 #if 1
 		//	printf("%s",server.switch_buf + server.sent_switch_buf_idx);
-			char com[100];
-			int n = 1;
-			int temp_num = sb_idx;
+			n = 1;
+			temp_num = sb_idx;
 			while(temp_num >= 10)
 			{
 				temp_num/= 10;
 				n++;
 			}
 			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%d\r\n%d\r\n",n,sb_idx);
-			int w1,w2;
 	//		w1 = write(fd, server.switch_buf,strlen(server.switch_buf));	
 #if 1	
 			w1 = write(fd,server.switch_buf + server.sent_switch_buf_idx,sb_idx-server.sent_switch_buf_idx);
@@ -601,7 +601,7 @@ void sendSwitchBuf(client *c) {
 		else{
 			//sleep(1);
 		}
-		pthread_cond_wait(&server.cond, &server.mutex);
+		//pthread_cond_wait(&server.cond, &server.mutex);
 		//zfree(server.switch_buf);
 	}
 }
@@ -865,11 +865,11 @@ void lastCommand(client *c){
 
 void lastackCommand(client *c){
 	//printf("%d %d\n",server.switch_buf_idx,server.switch_buf_idx - atoi(c->argv[1]->ptr));
-	printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
+//	printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
 #if 0
 	if (cnt < 50){
-		test[cnt] = count - atoi(c->argv[1]->ptr);
-		//test[cnt] = server.switch_buf_idx - atoi(c->argv[1]->ptr);
+		//test[cnt] = count - atoi(c->argv[1]->ptr);
+		test[cnt] = server.switch_buf_idx - atoi(c->argv[1]->ptr);
 		cnt++;
 	}
 	else if( cnt == 50 ){

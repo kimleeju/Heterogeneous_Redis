@@ -1486,6 +1486,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
 	} else {
         //slave
 		size_t prev_offset = c->reploff;
+
         processInputBuffer(c);
         size_t applied = c->reploff - prev_offset;
 		if (applied) {
