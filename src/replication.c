@@ -496,6 +496,7 @@ long long addReplyReplicationBacklog(client *c, long long offset) {
 #ifdef __KLJ__
 void sendSwitchBuf(client *c) {
 	int fd,fd2,n, temp_num, w1,w2;
+	int i;
 	char com[100];
     fd = anetTcpNonBlockBestEffortBindConnect(NULL,
         server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
@@ -503,13 +504,11 @@ void sendSwitchBuf(client *c) {
         server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
 	//client* cli = createClient(fd);	
 	int sb_idx;
-	printf("%d\n",server.switch_buf_idx);
-	while(1){
+	while(server.bool_switch_ready){
 		sleep(1);
 		//pthread_cond_wait(&server.cond, &server.mutex);
 		sb_idx = server.switch_buf_idx;
 		if(sb_idx > server.sent_switch_buf_idx){
-			printf("1111111111111111111111111111\n");
 #if 1
 		//	printf("%s",server.switch_buf + server.sent_switch_buf_idx);
 			n = 1;
@@ -520,9 +519,14 @@ void sendSwitchBuf(client *c) {
 				n++;
 			}
 			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%d\r\n%d\r\n",n,sb_idx);
-	//		w1 = write(fd, server.switch_buf,strlen(server.switch_buf));	
 #if 1	
 			w1 = write(fd,server.switch_buf + server.sent_switch_buf_idx,sb_idx-server.sent_switch_buf_idx);
+//			w1 = write(fd,server.switch_buf,sb_idx-server.sent_switch_buf_idx);
+#if 0
+			for(i = 0 ; i < w1; ++i)
+				server.switch_buf[i] = '\0';
+#endif
+	//		w1 = write(fd, server.switch_buf,strlen(server.switch_buf));	
 			while(w1 < sb_idx-server.sent_switch_buf_idx){
 				if(w1 >= 0)
 					server.sent_switch_buf_idx += w1;
@@ -605,6 +609,7 @@ void sendSwitchBuf(client *c) {
 		//pthread_cond_wait(&server.cond, &server.mutex);
 		//zfree(server.switch_buf);
 	}
+	printf("222222222222222222222\n");
 }
 #endif
 
@@ -2079,7 +2084,6 @@ void syncWithMaster(aeEventLoop *el, int fd, void *privdata, int mask) {
      * as well, if we have any sub-slaves. The master may transfer us an
      * entirely different data set and we have no way to incrementally feed
      * our slaves after that. */
-    printf("33333333333333333\n");
 	disconnectSlaves(); /* Force our slaves to resync with us as well. */
     freeReplicationBacklog(); /* Don't allow our chained slaves to PSYNC. */
 
@@ -2158,7 +2162,6 @@ int connectWithMaster(void) {
         serverLog(LL_WARNING,"Can't create readable event for SYNC");
         return C_ERR;
     }
-	printf("4444444444444444444444444\n");
     server.repl_transfer_lastio = server.unixtime;
     server.repl_transfer_s = fd;
     server.repl_state = REPL_STATE_CONNECTING;

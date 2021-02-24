@@ -3836,8 +3836,6 @@ int sentinelSendSlaveOf(sentinelRedisInstance *ri, char *host, int port) {
     ri->link->pending_commands++;
 #ifdef __KLJ__
 	if(ri->master->promoted_slave == ri && ri->master->new_master){
-		printf("ri= %d\n",ri->addr->port);
-		printf("ri->master = %d\n",ri->master->addr->port);
 		retval = redisAsyncCommand(ri->master->link->cc,
     	    sentinelDiscardReplyCallback, ri->master, "SWITCH");
 		if (retval == C_ERR) return retval;
@@ -4118,7 +4116,6 @@ void sentinelFailoverSendSlaveOfNoOne(sentinelRedisInstance *ri) {
      * if INFO returns a different role (master instead of slave). */
     //새 master 
 	retval = sentinelSendSlaveOf(ri->promoted_slave,NULL,0);
-    printf("333333333333333333333\n");
 	if (retval != C_OK) return;
 
     sentinelEvent(LL_NOTICE, "+failover-state-wait-promotion",
