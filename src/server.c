@@ -2628,10 +2628,10 @@ int processCommand(client *c) {
         c->cmd->flags & CMD_WRITE)
     {
 #ifdef __KLJ__
-		if(!server.finish_switch){
+		if(!server.bool_switch_ready){
 #endif
-//			addReply(c, shared.roslaveerr);
-//        	return C_OK;
+			addReply(c, shared.roslaveerr);
+        	return C_OK;
 #ifdef __KLJ__
 		}
 #endif

@@ -28,10 +28,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "server.h"
-struct timeval tv;
-int temp = 0;
 int cnt = 0;
 int test[150];
+#define THRESHOLD 1000000
 #include <sys/time.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -504,11 +503,13 @@ void sendSwitchBuf(client *c) {
         server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
 	//client* cli = createClient(fd);	
 	int sb_idx;
+	printf("%d\n",server.switch_buf_idx);
 	while(1){
 		sleep(1);
 		//pthread_cond_wait(&server.cond, &server.mutex);
 		sb_idx = server.switch_buf_idx;
 		if(sb_idx > server.sent_switch_buf_idx){
+			printf("1111111111111111111111111111\n");
 #if 1
 		//	printf("%s",server.switch_buf + server.sent_switch_buf_idx);
 			n = 1;
@@ -865,7 +866,14 @@ void lastCommand(client *c){
 
 void lastackCommand(client *c){
 	//printf("%d %d\n",server.switch_buf_idx,server.switch_buf_idx - atoi(c->argv[1]->ptr));
-//	printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
+	//printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
+	
+	if(server.switch_buf_idx - atoi(c->argv[1]->ptr) < THRESHOLD){
+		if(server.bool_switch_ready){
+			server.bool_switch_ready = 0;
+			connectWithMaster();
+		}
+	}
 #if 0
 	if (cnt < 50){
 		//test[cnt] = count - atoi(c->argv[1]->ptr);
@@ -2023,6 +2031,7 @@ void syncWithMaster(aeEventLoop *el, int fd, void *privdata, int mask) {
 #if 1
 #ifdef __KLJ__
 	if(server.bool_switch_ready){
+		server.repl_state = REPL_STATE_RECEIVE_PSYNC;
 		replicationResurrectCachedMaster(fd);
 		return;
 	}
@@ -2149,7 +2158,7 @@ int connectWithMaster(void) {
         serverLog(LL_WARNING,"Can't create readable event for SYNC");
         return C_ERR;
     }
-
+	printf("4444444444444444444444444\n");
     server.repl_transfer_lastio = server.unixtime;
     server.repl_transfer_s = fd;
     server.repl_state = REPL_STATE_CONNECTING;
