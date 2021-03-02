@@ -30,7 +30,6 @@
 #include "server.h"
 int cnt = 0;
 int test[150];
-#define THRESHOLD 1000000
 #include <sys/time.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -504,13 +503,12 @@ void sendSwitchBuf(client *c) {
         server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
 	//client* cli = createClient(fd);	
 	int sb_idx;
+	//printf("%d\n",server.switch_buf_idx);
 	while(server.bool_switch_ready){
-		sleep(1);
 		//pthread_cond_wait(&server.cond, &server.mutex);
 		sb_idx = server.switch_buf_idx;
 		if(sb_idx > server.sent_switch_buf_idx){
-#if 1
-		//	printf("%s",server.switch_buf + server.sent_switch_buf_idx);
+			//	printf("%s",server.switch_buf + server.sent_switch_buf_idx);
 			n = 1;
 			temp_num = sb_idx;
 			while(temp_num >= 10)
@@ -519,31 +517,12 @@ void sendSwitchBuf(client *c) {
 				n++;
 			}
 			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%d\r\n%d\r\n",n,sb_idx);
-#if 1	
 			w1 = write(fd,server.switch_buf + server.sent_switch_buf_idx,sb_idx-server.sent_switch_buf_idx);
-//			w1 = write(fd,server.switch_buf,sb_idx-server.sent_switch_buf_idx);
-#if 0
-			for(i = 0 ; i < w1; ++i)
-				server.switch_buf[i] = '\0';
-#endif
-	//		w1 = write(fd, server.switch_buf,strlen(server.switch_buf));	
 			while(w1 < sb_idx-server.sent_switch_buf_idx){
 				if(w1 >= 0)
 					server.sent_switch_buf_idx += w1;
 				w1 = write(fd,server.switch_buf + server.sent_switch_buf_idx,sb_idx-server.sent_switch_buf_idx);
 			}
-#if 0
-			while(w1 < 0){
-				close(fd);
-				fd = anetTcpNonBlockBestEffortBindConnect(NULL,
-        		server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
-	//			w1 = write(fd, server.switch_buf,strlen(server.switch_buf));	
-				w1 = write(fd,server.switch_buf + server.sent_switch_buf_idx,sb_idx-server.sent_switch_buf_idx);
-				printf("w1 = %d\n",w1);
-			}
-#endif
-#endif
-#if 1
 			w2 = write(fd2,com,strlen(com));
 			while(w2 < 0){
 				close(fd2);
@@ -551,44 +530,8 @@ void sendSwitchBuf(client *c) {
         		server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
 				w2 = write(fd2,com,strlen(com));
 			}
-#endif
-			//		printf("%s",server.switch_buf+server.sent_switch_buf_idx);
-	//		printf("w1 = %d, w2 = %d\n",w1,w2);
 			server.sent_switch_buf_idx = sb_idx;
-#endif
-#if 0
-			char *com = "*2\r\n$4\r\nLAST\r\n$3\r\n100\r\n";
-			write(fd,com,strlen(com));
-			char idx[20];
-			sprintf(idx,"%d",sb_idx);
-			char *sz = (char*)malloc(strlen(idx));
-#endif		
-#if 1
-	//		addReplyMultiBulkLen(cli,2);
-	//		addReplyBulkCString(cli,"LAST");
-#if 0
-			char idx[20];
-			sprintf(idx,"%d",sb_idx);
-			//sprintf(idx,"%d",server.sent_switch_buf_idx);
-			addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, sb_idx-server.sent_switch_buf_idx));
-	//		addReplyBulkCString(cli,idx);
-			server.sent_switch_buf_idx = sb_idx;
-			//pthread_mutex_unlock(&server.mutex);
-#endif
-#endif
-#if 0
-	//		addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, sb_idx-server.sent_switch_buf_idx));
-			server.sent_switch_buf_idx = sb_idx;
-			addReplyMultiBulkLen(c,2);
-			addReplyBulkCString(c,"LAST");
-			char idx[20];
-			//sprintf(idx,"%d",server.switch_buf_count);
-			sprintf(idx,"%d",server.sent_switch_buf_idx);
-			addReplyBulkCString(c,idx);
-			//pthread_mutex_unlock(&server.mutex);
-#endif
 			server.finish_switch = 1;
-		//	sleep(1);
 		}
 		else if(sb_idx < server.sent_switch_buf_idx){
 		//	sleep(1);
@@ -604,12 +547,24 @@ void sendSwitchBuf(client *c) {
 	//		addReplyBulkCString(c,idx);
 		}
 		else{
-			//sleep(1);
+			n = 1;
+			temp_num = sb_idx;
+			while(temp_num >= 10)
+			{
+				temp_num/= 10;
+				n++;
+			}
+			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%d\r\n%d\r\n",n,sb_idx);
+			w2 = write(fd2,com,strlen(com));
+			while(w2 < 0){
+				close(fd2);
+				fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
+        		server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
+				w2 = write(fd2,com,strlen(com));
+			}
 		}
-		//pthread_cond_wait(&server.cond, &server.mutex);
-		//zfree(server.switch_buf);
+		sleep(1);
 	}
-	printf("222222222222222222222\n");
 }
 #endif
 
@@ -872,13 +827,16 @@ void lastCommand(client *c){
 void lastackCommand(client *c){
 	//printf("%d %d\n",server.switch_buf_idx,server.switch_buf_idx - atoi(c->argv[1]->ptr));
 	//printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
-	
-	if(server.switch_buf_idx - atoi(c->argv[1]->ptr) < THRESHOLD){
+#if 1
+	long long diff = server.switch_buf_idx - atoi(c->argv[1]->ptr);
+	if(abs(server.switch_diff - diff) < 10000){
 		if(server.bool_switch_ready){
 			server.bool_switch_ready = 0;
 			connectWithMaster();
 		}
 	}
+	server.switch_diff = diff;
+#endif
 #if 0
 	if (cnt < 50){
 		//test[cnt] = count - atoi(c->argv[1]->ptr);

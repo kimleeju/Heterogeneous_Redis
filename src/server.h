@@ -1134,6 +1134,7 @@ struct redisServer {
 	pthread_t switch_thread;
 	char *switch_buf;
 	int old_master_fd;
+	long long switch_diff;
 	long long master_switch_offset;
 	long long switch_buf_size;
 	long long switch_buf_histlen;

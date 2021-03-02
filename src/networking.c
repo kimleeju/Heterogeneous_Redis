@@ -912,7 +912,6 @@ void freeClientsInAsyncFreeQueue(void) {
 /* Write data in output buffers to client. Return C_OK if the client
  * is still valid after the call, C_ERR if it was freed. */
 int writeToClient(int fd, client *c, int handler_installed) {
-#ifdef __KLJ__
 	//pthread_mutex_lock(&server.mutex);
 	ssize_t nwritten = 0, totwritten = 0;
     size_t objlen;
@@ -1001,8 +1000,6 @@ int writeToClient(int fd, client *c, int handler_installed) {
 	//pthread_cond_signal(&server.cond);
 	//pthread_mutex_unlock(&server.mutex);
 	return C_OK;
-
-#endif
 }
 
 /* Write event handler. Just send data to the client. */
