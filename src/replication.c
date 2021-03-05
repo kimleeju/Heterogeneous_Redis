@@ -350,7 +350,6 @@ void replicationFeedSwitchBuf(list *slaves, robj **argv, int argc) {
 		len = ll2string(aux+1,sizeof(aux)-1,argc);
 		aux[len+1] = '\r';
 		aux[len+2] = '\n';
-		
 		feedReplicationSwitchBuf(aux,len+3);
 		for (j = 0; j < argc; j++) {
 			long objlen = stringObjectLen(argv[j]);
@@ -494,7 +493,7 @@ long long addReplyReplicationBacklog(client *c, long long offset) {
 
 #ifdef __KLJ__
 void sendSwitchBuf(client *c) {
-	int fd,fd2,n, temp_num, w1,w2;
+	int fd,fd2, w1,w2;
 	int i;
 	char com[100];
     fd = anetTcpNonBlockBestEffortBindConnect(NULL,
@@ -502,7 +501,7 @@ void sendSwitchBuf(client *c) {
     fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
         server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
 	//client* cli = createClient(fd);	
-	int sb_idx;
+	long long n,temp_num, sb_idx;
 	//printf("%d\n",server.switch_buf_idx);
 	while(server.bool_switch_ready){
 		//pthread_cond_wait(&server.cond, &server.mutex);
@@ -516,7 +515,7 @@ void sendSwitchBuf(client *c) {
 				temp_num/= 10;
 				n++;
 			}
-			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%d\r\n%d\r\n",n,sb_idx);
+			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%lld\r\n%lld\r\n",n,sb_idx);
 			w1 = write(fd,server.switch_buf + server.sent_switch_buf_idx,sb_idx-server.sent_switch_buf_idx);
 			while(w1 < sb_idx-server.sent_switch_buf_idx){
 				if(w1 >= 0)
@@ -525,16 +524,16 @@ void sendSwitchBuf(client *c) {
 			}
 			w2 = write(fd2,com,strlen(com));
 			while(w2 < 0){
-				close(fd2);
-				fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
-        		server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
+	//			close(fd2);
+	//			fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
+    // 	  		server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
 				w2 = write(fd2,com,strlen(com));
 			}
 			server.sent_switch_buf_idx = sb_idx;
 			server.finish_switch = 1;
 		}
 		else if(sb_idx < server.sent_switch_buf_idx){
-		//	sleep(1);
+			//	sleep(1);
 
 	//		addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, strlen(server.switch_buf)-server.sent_switch_buf_idx));
 	//		addReplySds(c,sdsnewlen(server.switch_buf, server.switch_buf_idx));
@@ -554,12 +553,12 @@ void sendSwitchBuf(client *c) {
 				temp_num/= 10;
 				n++;
 			}
-			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%d\r\n%d\r\n",n,sb_idx);
+			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%d\r\n%lld\r\n",n,sb_idx);
 			w2 = write(fd2,com,strlen(com));
 			while(w2 < 0){
-				close(fd2);
-				fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
-        		server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
+				//close(fd2);
+				//fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
+        		//server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
 				w2 = write(fd2,com,strlen(com));
 			}
 		}
@@ -829,8 +828,9 @@ void lastackCommand(client *c){
 	//printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
 #if 1
 	long long diff = server.switch_buf_idx - atoi(c->argv[1]->ptr);
-	if(abs(server.switch_diff - diff) < 10000){
+	if(abs(server.switch_diff - diff) < 100000){
 		if(server.bool_switch_ready){
+			//printf("111111111111111\n");
 			server.bool_switch_ready = 0;
 			connectWithMaster();
 		}
@@ -1991,14 +1991,12 @@ void syncWithMaster(aeEventLoop *el, int fd, void *privdata, int mask) {
         server.repl_state = REPL_STATE_SEND_PSYNC;
     }
 
-#if 1
 #ifdef __KLJ__
 	if(server.bool_switch_ready){
 		server.repl_state = REPL_STATE_RECEIVE_PSYNC;
 		replicationResurrectCachedMaster(fd);
 		return;
 	}
-#endif
 #endif
     /* Try a partial resynchonization. If we don't have a cached master
      * slaveTryPartialResynchronization() will at least try to use PSYNC
@@ -2472,7 +2470,7 @@ void replicationResurrectCachedMaster(int newfd) {
 #ifdef __KLJ__
 	if(server.bool_switch_ready){
 		pthread_create(&server.switch_thread,NULL,(void*)sendSwitchBuf,(void*)server.master);
-		pthread_detach(&server.switch_thread);
+//		pthread_detach(&server.switch_thread);
 	//	sendSwitchBuf(server.master);
 		//printf("%d\n",server.switch_buf_count);
 	}

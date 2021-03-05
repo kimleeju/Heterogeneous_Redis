@@ -135,8 +135,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONFIG_DEFAULT_SLAVE_PRIORITY 100
 #ifdef __KLJ__
 	#define CONFIG_DEFAULT_MEMORY_PRIORITY 20
-	#define CONFIG_DEFAULT_SWITCH_BUF (1024 * 1024)
-	#define CONFIG_DEFAULT_SWITCH_BUF_SIZE (1024*1024)    /* 1mb */
+	#define CONFIG_DEFAULT_SWITCH_BUF (8589934592)
 	#define CONFIG_DEFAULT_SWITCH_BUF_TIME_LIMIT (60*60)  /* 1 hour */
 #endif
 

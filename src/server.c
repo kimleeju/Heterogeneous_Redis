@@ -1525,7 +1525,7 @@ void initServerConfig(void) {
 	server.switch_buf = NULL;
 	//server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF * 1024*1024*1024*1024*1024;
 	//server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF * 100000000;
-	server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF*1024;
+	server.switch_buf_size = CONFIG_DEFAULT_SWITCH_BUF;
 	server.switch_diff = 0;
 	server.switch_buf_histlen = 0;
 	server.switch_buf_idx = 0;

@@ -2121,11 +2121,6 @@ int rewriteConfig(char *path) {
     rewriteConfigNumericalOption(state,"repl-timeout",server.repl_timeout,CONFIG_DEFAULT_REPL_TIMEOUT);
     rewriteConfigBytesOption(state,"repl-backlog-size",server.repl_backlog_size,CONFIG_DEFAULT_REPL_BACKLOG_SIZE);
     rewriteConfigBytesOption(state,"repl-backlog-ttl",server.repl_backlog_time_limit,CONFIG_DEFAULT_REPL_BACKLOG_TIME_LIMIT);
-#ifdef __KLJ__
-	rewriteConfigBytesOption(state,"switch-buf-size",server.switch_buf_size,CONFIG_DEFAULT_SWITCH_BUF_SIZE);
-    rewriteConfigBytesOption(state,"switch-buf-ttl",server.switch_buf_time_limit,CONFIG_DEFAULT_SWITCH_BUF_TIME_LIMIT);
-
-#endif
 	rewriteConfigYesNoOption(state,"repl-disable-tcp-nodelay",server.repl_disable_tcp_nodelay,CONFIG_DEFAULT_REPL_DISABLE_TCP_NODELAY);
     rewriteConfigYesNoOption(state,"repl-diskless-sync",server.repl_diskless_sync,CONFIG_DEFAULT_REPL_DISKLESS_SYNC);
     rewriteConfigNumericalOption(state,"repl-diskless-sync-delay",server.repl_diskless_sync_delay,CONFIG_DEFAULT_REPL_DISKLESS_SYNC_DELAY);
