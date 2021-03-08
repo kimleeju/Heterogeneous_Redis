@@ -2621,6 +2621,12 @@ int processCommand(client *c) {
         addReply(c, shared.noreplicaserr);
         return C_OK;
     }
+#ifdef __KLJ__
+	if(server.synchronizing && c->cmd->flags & CMD_WRITE){
+		addReply(c, shared.roslaveerr);
+        return C_OK;
+	}
+#endif
 
     /* Don't accept write commands if this is a read only slave. But
      * accept write commands if this is our master. */

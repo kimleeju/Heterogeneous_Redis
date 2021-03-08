@@ -500,14 +500,10 @@ void sendSwitchBuf(client *c) {
         server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
     fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
         server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
-	//client* cli = createClient(fd);	
 	long long n,temp_num, sb_idx;
-	//printf("%d\n",server.switch_buf_idx);
 	while(server.bool_switch_ready){
-		//pthread_cond_wait(&server.cond, &server.mutex);
 		sb_idx = server.switch_buf_idx;
 		if(sb_idx > server.sent_switch_buf_idx){
-			//	printf("%s",server.switch_buf + server.sent_switch_buf_idx);
 			n = 1;
 			temp_num = sb_idx;
 			while(temp_num >= 10)
@@ -524,45 +520,35 @@ void sendSwitchBuf(client *c) {
 			}
 			w2 = write(fd2,com,strlen(com));
 			while(w2 < 0){
-	//			close(fd2);
-	//			fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
-    // 	  		server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
 				w2 = write(fd2,com,strlen(com));
 			}
 			server.sent_switch_buf_idx = sb_idx;
-			server.finish_switch = 1;
-		}
-		else if(sb_idx < server.sent_switch_buf_idx){
-			//	sleep(1);
-
-	//		addReplySds(c,sdsnewlen(server.switch_buf + server.sent_switch_buf_idx, strlen(server.switch_buf)-server.sent_switch_buf_idx));
-	//		addReplySds(c,sdsnewlen(server.switch_buf, server.switch_buf_idx));
-//			server.sent_switch_buf_idx = sb_idx;
-	//		addReplyMultiBulkLen(c,2);
-	//		addReplyBulkCString(c,"LAST");
-	//		char idx[100];
-	//		sprintf(idx,"%d",server.switch_buf_count);
-			//sprintf(idx,"%d",server.sent_switch_buf_idx);
-	//		addReplyBulkCString(c,idx);
-		}
-		else{
-			n = 1;
-			temp_num = sb_idx;
-			while(temp_num >= 10)
-			{
-				temp_num/= 10;
-				n++;
-			}
-			sprintf(com,"*2\r\n$4\r\nLAST\r\n$%d\r\n%lld\r\n",n,sb_idx);
-			w2 = write(fd2,com,strlen(com));
-			while(w2 < 0){
-				//close(fd2);
-				//fd2 = anetTcpNonBlockBestEffortBindConnect(NULL,
-        		//server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
-				w2 = write(fd2,com,strlen(com));
-			}
 		}
 		sleep(1);
+	}
+	sb_idx = server.switch_buf_idx;
+	if(sb_idx > server.sent_switch_buf_idx){
+		n = 1;
+		temp_num = sb_idx;
+		while(temp_num >= 10)
+		{
+			temp_num/= 10;
+			n++;
+		}
+		sprintf(com,"*2\r\n$4\r\nLAST\r\n$%lld\r\n%lld\r\n",n,sb_idx);
+		w1 = write(fd,server.switch_buf + server.sent_switch_buf_idx,sb_idx-server.sent_switch_buf_idx);
+		while(w1 < sb_idx-server.sent_switch_buf_idx){
+			if(w1 >= 0)
+				server.sent_switch_buf_idx += w1;
+			w1 = write(fd,server.switch_buf + server.sent_switch_buf_idx,sb_idx-server.sent_switch_buf_idx);
+		}
+		w2 = write(fd2,com,strlen(com));
+		while(w2 < 0){
+			w2 = write(fd2,com,strlen(com));
+		}
+		server.sent_switch_buf_idx = sb_idx;
+		const char *command = "FINISH\r\n";
+		w1 = write(fd,command,strlen(command));
 	}
 }
 #endif
@@ -806,18 +792,12 @@ void switchCommand() {
 void lastCommand(client *c){
 	char com[100];
 	sprintf(com,"*2\r\n$4\r\nLACK\r\n$%d\r\n%s\r\n",strlen(c->argv[1]->ptr),c->argv[1]->ptr);
-	//sprintf(com,"*2\r\n$4\r\nLACK\r\n$%d\r\n%s\r\n",strlen(c->argv[1]->ptr),c->argv[1]->ptr);
-#if 0
-	addReplyMultiBulkLen(c,2);
-	addReplyBulkCString(c,"LACK");
-	addReplyBulkCString(c,c->argv[1]->ptr);	
-#endif
 	int w2;
 	w2 = write(server.old_master_fd,com,strlen(com)); 
 	while(w2 < 0){
 		close(server.old_master_fd);
         server.old_master_fd = anetTcpNonBlockBestEffortBindConnect(NULL,
-       	"127.0.0.1",3000,NET_FIRST_BIND_ADDR);
+       	"127.0.0.1",3001,NET_FIRST_BIND_ADDR);
 		w2 = write(server.old_master_fd,com,strlen(com)); 
 	}
 }
@@ -826,32 +806,25 @@ void lastCommand(client *c){
 void lastackCommand(client *c){
 	//printf("%d %d\n",server.switch_buf_idx,server.switch_buf_idx - atoi(c->argv[1]->ptr));
 	//printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
-#if 1
 	long long diff = server.switch_buf_idx - atoi(c->argv[1]->ptr);
 	if(abs(server.switch_diff - diff) < 100000){
 		if(server.bool_switch_ready){
-			//printf("111111111111111\n");
+	//		printf("66666666\n");
 			server.bool_switch_ready = 0;
+	
+#if 0	
+    		int fd = anetTcpNonBlockBestEffortBindConnect(NULL,
+				server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
+			slaveTryPartialResynchronization(fd,0);
+			const char *command = "FINISH\r\n";
+			int w1 = write(fd,command,strlen(command));
+			printf("w1 = %d\n",w1);
+#endif
 			connectWithMaster();
+			
 		}
 	}
 	server.switch_diff = diff;
-#endif
-#if 0
-	if (cnt < 50){
-		//test[cnt] = count - atoi(c->argv[1]->ptr);
-		test[cnt] = server.switch_buf_idx - atoi(c->argv[1]->ptr);
-		cnt++;
-	}
-	else if( cnt == 50 ){
-		for(int i = 0; i < 50 ; ++i){
-			printf("%d\n",test[i]);
-		}
-		cnt = 0;
-	}
-
-	//printf("%d\n",server.switch_buf_idx - atoi(c->argv[1]->ptr));
-#endif
 }
 void okCommand() {
 }
@@ -859,15 +832,10 @@ void okCommand() {
 void promoteCommand(){
     server.old_master_fd = anetTcpNonBlockBestEffortBindConnect(NULL,
         server.masterhost,server.masterport,NET_FIRST_BIND_ADDR);
-	//server.synchronizing = 1;
+	server.synchronizing = 1;
 }
 void finishCommand(client *c){
-	c->flags |= CLIENT_SLAVE;
-    c->replstate = SLAVE_STATE_ONLINE;
-    c->repl_ack_time = server.unixtime;
-    c->repl_put_online_on_ack = 0;
-    listAddNodeTail(server.slaves,c);
-	putSlaveOnline(c);
+	server.synchronizing = 0;	
 }
 #endif
 
@@ -1114,6 +1082,9 @@ void putSlaveOnline(client *slave) {
     refreshGoodSlavesCount();
     serverLog(LL_NOTICE,"Synchronization with slave %s succeeded",
         replicationGetSlaveName(slave));
+#ifdef __KLJ__
+	server.bool_connect_master = 1;
+#endif
 }
 
 void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
@@ -1539,7 +1510,9 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
          * masters after a failover. */
         if (server.repl_backlog == NULL) createReplicationBacklog();
 #ifdef __KLJ__ 
-		server.bool_connect_master = 1;
+		
+		//printf("444444444\n");
+		//server.bool_connect_master = 1;
 #endif
         serverLog(LL_NOTICE, "MASTER <-> SLAVE sync: Finished with success");
         /* Restart the AOF subsystem now that we finished the sync. This
@@ -2019,7 +1992,6 @@ void syncWithMaster(aeEventLoop *el, int fd, void *privdata, int mask) {
                              server.repl_state);
         goto error;
     }
-
     psync_result = slaveTryPartialResynchronization(fd,1);
     if (psync_result == PSYNC_WAIT_REPLY) return; /* Try again later... */
 
@@ -2118,6 +2090,7 @@ int connectWithMaster(void) {
         serverLog(LL_WARNING,"Can't create readable event for SYNC");
         return C_ERR;
     }
+
     server.repl_transfer_lastio = server.unixtime;
     server.repl_transfer_s = fd;
     server.repl_state = REPL_STATE_CONNECTING;
@@ -2777,7 +2750,8 @@ void replicationCron(void) {
         serverLog(LL_NOTICE,"Connecting to MASTER %s:%d",
             server.masterhost, server.masterport);
         if (connectWithMaster() == C_OK) {
-            serverLog(LL_NOTICE,"MASTER <-> SLAVE sync started");
+
+			serverLog(LL_NOTICE,"MASTER <-> SLAVE sync started");
         }
     }
 #if 0

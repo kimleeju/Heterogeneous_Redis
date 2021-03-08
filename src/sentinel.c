@@ -3846,7 +3846,6 @@ int sentinelSendSlaveOf(sentinelRedisInstance *ri, char *host, int port) {
 		if (retval == C_ERR) return retval;
     	ri->link->pending_commands++;
 	}
-
 #endif
 	retval = redisAsyncCommand(ri->link->cc,
         sentinelDiscardReplyCallback, ri, "SLAVEOF %s %s", host, portstr);
@@ -4380,9 +4379,8 @@ void sentinelHandleDictOfRedisInstances(dict *instances) {
 	
 		}
 #endif
-
-		if(ri->master != NULL && ri->master->memory_priority > ri->memory_priority && (!ri->master->new_master)  && !ri->master->failover_state && ri->bool_connect_master){
-		//if(ri->master != NULL && ri->master->memory_priority > ri->memory_priority && ri->master->bool_switch_ready && (!ri->master->new_master)  && !ri->master->failover_state){
+		if(ri->master != NULL && ri->master->memory_priority > ri->memory_priority && (!ri->master->new_master)  && !ri->master->failover_state && ri->master->bool_connect_master){
+			//if(ri->master != NULL && ri->master->memory_priority > ri->memory_priority && ri->master->bool_switch_ready && (!ri->master->new_master)  && !ri->master->failover_state){
 			ri->master->flags |= SRI_FAILOVER_IN_PROGRESS; //flag를 failover말고 다른걸로 바꿔야함
 			ri->master->promoted_slave = ri;
 			ri->master->failover_state = SENTINEL_FAILOVER_STATE_SEND_SLAVEOF_NOONE;
